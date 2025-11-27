@@ -8,13 +8,15 @@ pipeline {
       }
     }
 
-       stage('Build Info') {
+           stage('Build Info') {
       steps {
         script {
-          // short commit (first 7 chars)
-          def shortSha = (env.GIT_COMMIT ?: "").take(7)
-          echo "Commit: ${env.GIT_COMMIT}"
-          echo "Branch: ${env.GIT_BRANCH}"
+          // get short SHA from workspace
+          def shortSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          // determine branch (fallback if env var not present)
+          def branch = env.GIT_BRANCH ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+          echo "Commit: ${shortSha}"
+          echo "Branch: ${branch}"
           echo "Build Number: ${env.BUILD_NUMBER}"
           echo "Timestamp: ${new Date().toString()}"
 
@@ -23,11 +25,5 @@ pipeline {
           currentBuild.displayName = version
           echo "Version: ${version}"
         }
-      }
-    }
-
-    stage('Success') {
-      steps {
-        echo "Build completed successfully"
       }
     }
