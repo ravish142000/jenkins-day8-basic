@@ -31,4 +31,3 @@ pipeline {
       echo "Post: build finished"
     }
   }
-}
