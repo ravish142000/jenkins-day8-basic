@@ -1,6 +1,11 @@
 pipeline {
   agent any
 
+  environment {
+    IMAGE_NAME = 'ravi-demo'            // change if you prefer another repo name
+    TAG = "${env.BUILD_NUMBER ?: 'local'}"
+  }
+
   stages {
     stage('Checkout') {
       steps {
@@ -8,36 +13,38 @@ pipeline {
       }
     }
 
-    stage('Build Info') {
+    stage('Build Docker Image') {
       steps {
-        script {
-          // get short SHA from workspace
-          def shortSha = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-          // determine branch (fallback if env var not present)
-          def branch = env.GIT_BRANCH ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-          echo "Commit: ${shortSha}"
-          echo "Branch: ${branch}"
-          echo "Build Number: ${env.BUILD_NUMBER}"
-          echo "Timestamp: ${new Date().toString()}"
+        echo "Building image ${IMAGE_NAME}:${TAG}"
+        sh "docker build -t ${IMAGE_NAME}:${TAG} ."
+      }
+    }
 
-          // set a friendly version and display name
-          def version = "v${env.BUILD_NUMBER}-${shortSha}"
-          currentBuild.displayName = version
-          echo "Version: ${version}"
+    stage('Login & Push to Docker Hub') {
+      steps {
+        // uses credentials id 'dockerhub' you added in Jenkins (username/password)
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PSW')]) {
+          sh '''
+            echo "Logging in to Docker Hub as $DOCKERHUB_USER"
+            echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+            # tag with username/repo:tag (Docker Hub expects username/repo)
+            docker tag ${IMAGE_NAME}:${TAG} ${DOCKERHUB_USER}/${IMAGE_NAME}:${TAG}
+
+            echo "Pushing ${DOCKERHUB_USER}/${IMAGE_NAME}:${TAG}"
+            docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${TAG}
+          '''
         }
       }
     }
-
-    stage('Success') {
-      steps {
-        echo "Build completed successfully"
-      }
-    }
-  } // end stages
+  }
 
   post {
-    always {
-      echo "Post: build finished"
+    success {
+      echo "Pipeline finished: pushed ${IMAGE_NAME}:${TAG}"
+    }
+    failure {
+      echo "Pipeline failed"
     }
   }
-} // end pipeline
+}
