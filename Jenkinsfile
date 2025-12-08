@@ -13,6 +13,12 @@ pipeline {
       }
     }
 
+   stage('Test') {
+    steps {
+	echo "running simple shell test..."
+	sh './test.sh'
+	}
+    }
     stage('Build Docker Image') {
       steps {
         echo "Building image ${IMAGE_NAME}:${TAG}"
