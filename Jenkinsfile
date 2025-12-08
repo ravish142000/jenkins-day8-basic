@@ -1,56 +1,60 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    IMAGE_NAME = 'ravi-demo'            // change if you prefer another repo name
-    TAG = "${env.BUILD_NUMBER ?: 'local'}"
-  }
+    stages {
 
-  stages {
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
-    }
-
-   stage('Test') {
-    steps {
-	echo "running simple shell test..."
-	sh './test.sh'
-	}
-    }
-    stage('Build Docker Image') {
-      steps {
-        echo "Building image ${IMAGE_NAME}:${TAG}"
-        sh "docker build -t ${IMAGE_NAME}:${TAG} ."
-      }
-    }
-
-    stage('Login & Push to Docker Hub') {
-      steps {
-        // uses credentials id 'dockerhub' you added in Jenkins (username/password)
-        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PSW')]) {
-          sh '''
-            echo "Logging in to Docker Hub as $DOCKERHUB_USER"
-            echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USER" --password-stdin
-
-            # tag with username/repo:tag (Docker Hub expects username/repo)
-            docker tag ${IMAGE_NAME}:${TAG} ${DOCKERHUB_USER}/${IMAGE_NAME}:${TAG}
-
-            echo "Pushing ${DOCKERHUB_USER}/${IMAGE_NAME}:${TAG}"
-            docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${TAG}
-          '''
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
         }
-      }
-    }
-  }
 
-  post {
-    success {
-      echo "Pipeline finished: pushed ${IMAGE_NAME}:${TAG}"
+        stage('Test') {
+            steps {
+                echo 'Running simple shell test...'
+                sh './test.sh'
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                echo 'Building Docker image...'
+                sh "docker build -t jenkins-day8-basic:${env.BUILD_NUMBER} ."
+                sh "docker tag jenkins-day8-basic:${env.BUILD_NUMBER} ${DOCKERHUB_USER}/jenkins-day8-basic:${env.BUILD_NUMBER}"
+                sh "docker tag jenkins-day8-basic:${env.BUILD_NUMBER} ${DOCKERHUB_USER}/jenkins-day8-basic:latest"
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                echo 'Pushing Docker image to Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                 usernameVariable: 'DOCKERHUB_USER',
+                                                 passwordVariable: 'DOCKERHUB_PASS')]) {
+
+                    sh "echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin"
+
+                    sh "docker push ${DOCKERHUB_USER}/jenkins-day8-basic:${env.BUILD_NUMBER}"
+                    sh "docker push ${DOCKERHUB_USER}/jenkins-day8-basic:latest"
+
+                    sh "docker logout"
+                }
+            }
+        }
+
     }
-    failure {
-      echo "Pipeline failed"
+
+    post {
+        success {
+            echo "Pipeline succeeded!"
+        }
+        failure {
+            echo "Pipeline failed!"
+        }
+        always {
+            echo "Cleaning up workspace..."
+        }
     }
-  }
 }
+
