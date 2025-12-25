@@ -7,5 +7,11 @@ pipeline {
                 echo 'Build stage running'
             }
         }
+
+        stage('Test') {
+            steps {
+                sh 'exit 0'
+            }
+        }
     }
 }
