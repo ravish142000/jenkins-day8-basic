@@ -7,11 +7,17 @@ pipeline {
                 echo 'Build stage running'
             }
         }
-
         stage('Test') {
-            steps {
-                sh 'exit 1'
-            }
+        steps {
+            sh '''
+                echo "Running tests..." > test-report.txt
+                echo "Test failed at $(date)" >> test-report.txt
+                exit 1
+            '''
         }
     }
-}
+        post {
+            always {
+                archiveArtifacts artifacts: 'test-report.txt'
+            }
+        }
