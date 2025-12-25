@@ -11,8 +11,8 @@ pipeline {
         stage('Test') {
             steps {
                 sh '''
-                    echo "Running tests..." > test-report.txt
-                    echo "Test failed at $(date)" >> test-report.txt
+                    mkdir -p reports
+                    echo "Test failed" > reports/test-report.txt
                     exit 1
                 '''
             }
@@ -21,7 +21,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'test-reporrt.txt'
+            archiveArtifacts artifacts: 'test-report.txt'
         }
     }
 }
