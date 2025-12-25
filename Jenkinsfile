@@ -21,7 +21,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'test-report.txt'
+            archiveArtifacts artifacts: 'test-reporrt.txt'
         }
     }
 }
